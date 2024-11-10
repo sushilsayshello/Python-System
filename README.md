@@ -1,6 +1,6 @@
 # Python-System
 
-# README for Setting Up and Running a Streamlit Environment
+# Setting Up and Running a Streamlit Environment
 
 ## Step-by-Step Guide
 
