@@ -42,7 +42,7 @@ if uploaded_file is not None:
     # Data Preprocessing
     label_encoder = LabelEncoder()
     data['label'] = label_encoder.fit_transform(data['label'])
-    label_mapping = {str(k): int(v) for k, v in label_encoder.classes_.items()}
+    label_mapping = {str(class_label): int(encoded_label) for encoded_label, class_label in enumerate(label_encoder.classes_)}
     st.write("Label Encoding Mapping:", label_mapping)
 
     # Filtering and Feature Selection
