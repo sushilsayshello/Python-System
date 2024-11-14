@@ -85,8 +85,8 @@ if uploaded_file is not None:
     cm_fig.update_layout(title="Confusion Matrix")
     st.plotly_chart(cm_fig)
 
-    # Visualizations and Data-Driven Recommendations for Selected Features
-    st.subheader("Feature Visualizations and Recommendations")
+    # Visualizations and Feature Distribution
+    st.subheader("Feature Visualizations")
 
     for feature in features_to_analyze:
         if feature in filtered_data.columns:
@@ -94,59 +94,70 @@ if uploaded_file is not None:
             fig = px.histogram(filtered_data, x=feature, title=f"{feature.capitalize()} Distribution")
             st.plotly_chart(fig)
 
-            # Generate recommendations based on data analysis for each feature if numeric
-            if pd.api.types.is_numeric_dtype(filtered_data[feature]):
-                feature_mean = float(filtered_data[feature].mean())
-                feature_median = float(filtered_data[feature].median())
-                feature_max = float(filtered_data[feature].max())
+    # Recommendations Consolidated at the End
+    st.subheader("Consolidated Recommendations")
 
-                if feature == 'pktcount':
-                    st.write("- **Average Packet Count**:", feature_mean)
-                    st.write("- **Max Packet Count**:", feature_max)
-                    if feature_mean > 1000:
-                        st.warning("High average packet count detected. Monitor for potential DDoS attacks.")
-                elif feature == 'bytecount':
-                    st.write("- **Average Byte Count**:", feature_mean)
-                    if feature_max > 1e6:
-                        st.warning("Unusually high byte count detected, which may indicate data exfiltration.")
-                elif feature == 'dur':
-                    st.write("- **Median Duration**:", feature_median)
-                    if feature_median < 1:
-                        st.info("Short durations detected; may suggest brief scanning activity.")
-                elif feature == 'tot_dur':
-                    st.write("- **Total Duration**:", feature_mean)
-                    if feature_max > 1000:
-                        st.warning("Long connection durations observed; check for unauthorized persistent connections.")
-                elif feature == 'flows':
-                    st.write("- **Flow Count**:", feature_mean)
-                    if feature_mean > 500:
-                        st.warning("High flow counts detected, could indicate heavy load or scanning.")
-                elif feature == 'pktperflow':
-                    st.write("- **Packets per Flow**:", feature_mean)
-                    if feature_mean < 2:
-                        st.warning("Low packets per flow detected; potential sign of resource exhaustion attacks.")
-                elif feature == 'byteperflow':
-                    st.write("- **Bytes per Flow**:", feature_mean)
-                    if feature_mean < 50:
-                        st.info("Low bytes per flow; possibly indicating inefficient data transfer.")
-                elif feature == 'protocol':
-                    protocol_counts = filtered_data['protocol'].value_counts()
-                    st.write("**Protocol Distribution:**")
-                    st.write(protocol_counts.to_dict())
-                    if protocol_counts.get(17, 0) > protocol_counts.get(6, 0):
-                        st.warning("High usage of uncommon protocols detected. Monitor for non-standard traffic.")
-                elif feature == 'port_no':
-                    port_counts = filtered_data['port_no'].value_counts().nlargest(5)
-                    st.write("**Top 5 Ports:**")
-                    st.write(port_counts.to_dict())
-                    if port_counts.get(8080, 0) > 100:
-                        st.warning("Unusually high traffic on port 8080. Verify if this is expected or unauthorized.")
-                elif feature == 'pktrate':
-                    st.write("- **Packet Rate**:", feature_mean)
-                    if feature_mean > 200:
-                        st.warning("High packet rate detected; may indicate DDoS attempts.")
-            else:
-                st.info(f"- **{feature.capitalize()}** contains non-numeric values and was excluded from statistical recommendations.")
+    for feature in features_to_analyze:
+        if pd.api.types.is_numeric_dtype(filtered_data[feature]):
+            feature_mean = float(filtered_data[feature].mean())
+            feature_median = float(filtered_data[feature].median())
+            feature_max = float(filtered_data[feature].max())
+
+            if feature == 'pktcount':
+                st.write("- **Packet Count**")
+                st.write(f"  - Average: {feature_mean}")
+                st.write(f"  - Max: {feature_max}")
+                if feature_mean > 1000:
+                    st.warning("High average packet count detected. Monitor for potential DDoS attacks.")
+            elif feature == 'bytecount':
+                st.write("- **Byte Count**")
+                st.write(f"  - Average: {feature_mean}")
+                if feature_max > 1e6:
+                    st.warning("Unusually high byte count detected, which may indicate data exfiltration.")
+            elif feature == 'dur':
+                st.write("- **Duration**")
+                st.write(f"  - Median: {feature_median}")
+                if feature_median < 1:
+                    st.info("Short durations detected; may suggest brief scanning activity.")
+            elif feature == 'tot_dur':
+                st.write("- **Total Duration**")
+                st.write(f"  - Average: {feature_mean}")
+                if feature_max > 1000:
+                    st.warning("Long connection durations observed; check for unauthorized persistent connections.")
+            elif feature == 'flows':
+                st.write("- **Flow Count**")
+                st.write(f"  - Average: {feature_mean}")
+                if feature_mean > 500:
+                    st.warning("High flow counts detected, could indicate heavy load or scanning.")
+            elif feature == 'pktperflow':
+                st.write("- **Packets per Flow**")
+                st.write(f"  - Average: {feature_mean}")
+                if feature_mean < 2:
+                    st.warning("Low packets per flow detected; potential sign of resource exhaustion attacks.")
+            elif feature == 'byteperflow':
+                st.write("- **Bytes per Flow**")
+                st.write(f"  - Average: {feature_mean}")
+                if feature_mean < 50:
+                    st.info("Low bytes per flow; possibly indicating inefficient data transfer.")
+            elif feature == 'protocol':
+                protocol_counts = filtered_data['protocol'].value_counts()
+                st.write("- **Protocol Distribution**")
+                st.write(protocol_counts.to_dict())
+                if protocol_counts.get(17, 0) > protocol_counts.get(6, 0):
+                    st.warning("High usage of uncommon protocols detected. Monitor for non-standard traffic.")
+            elif feature == 'port_no':
+                port_counts = filtered_data['port_no'].value_counts().nlargest(5)
+                st.write("- **Top 5 Ports**")
+                st.write(port_counts.to_dict())
+                if port_counts.get(8080, 0) > 100:
+                    st.warning("Unusually high traffic on port 8080. Verify if this is expected or unauthorized.")
+            elif feature == 'pktrate':
+                st.write("- **Packet Rate**")
+                st.write(f"  - Average: {feature_mean}")
+                if feature_mean > 200:
+                    st.warning("High packet rate detected; may indicate DDoS attempts.")
+        else:
+            st.info(f"- **{feature.capitalize()}** contains non-numeric values and was excluded from statistical recommendations.")
 
     # Time-Series Analysis (if timestamp column is available)
     if 'dt' in data.columns:
