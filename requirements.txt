@@ -7,3 +7,4 @@ xgboost
 numpy
 plotly
 altair
+openpyxl
