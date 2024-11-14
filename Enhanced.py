@@ -59,7 +59,7 @@ if uploaded_file is not None:
     # Feature Selection
     st.sidebar.subheader("Feature Selection")
     num_features = st.sidebar.slider("Select number of features", min_value=1, max_value=len(filtered_data.columns) - 1, value=5)
-    X = filtered_data.drop(columns=['label', 'flow id', 'timestamp'], errors='ignore')
+    X = filtered_data.drop(columns=['label', 'dt'], errors='ignore')
     y = filtered_data['label']
 
     # Select K best features
@@ -96,30 +96,43 @@ if uploaded_file is not None:
     # Confusion Matrix with Plotly
     st.subheader("Confusion Matrix")
     cm = confusion_matrix(y_test, y_pred)
-    cm_fig = px.imshow(cm, text_auto=True, labels={'x': "Predicted", 'y': "Actual"}, x=['Benign', 'Attack'], y=['Benign', 'Attack'])
+    cm_fig = px.imshow(cm, text_auto=True, labels={'x': "Predicted", 'y': "Actual"}, x=label_mapping.keys(), y=label_mapping.keys())
     cm_fig.update_layout(title="Confusion Matrix")
     st.plotly_chart(cm_fig)
 
-    # Additional Analysis: Count of attacks vs normal traffic
+    # Enhanced Traffic Analysis and Insights
     st.subheader("Traffic Analysis and Insights")
-    attack_count = (y_test == label_mapping.get('attack', -1)).sum()
-    normal_count = (y_test == label_mapping.get('benign', -1)).sum()
+    attack_count = (y == label_mapping.get('attack', -1)).sum()
+    normal_count = (y == label_mapping.get('benign', -1)).sum()
     st.write(f"Total Attack Traffic: {attack_count}")
     st.write(f"Total Normal Traffic: {normal_count}")
     st.write(f"Attack to Normal Traffic Ratio: {attack_count / max(normal_count, 1):.2f}")
 
-    # Suggestions based on traffic ratios
-    if attack_count > normal_count:
-        st.warning("High volume of attack traffic detected. Recommend monitoring and adjusting firewall settings.")
-    elif attack_count / max(normal_count, 1) > 0.5:
-        st.info("Moderate level of attack traffic. Suggest periodic monitoring and increasing security thresholds.")
-    else:
-        st.success("Attack traffic is low compared to normal traffic.")
+    # Analyze Packet Rate, Byte Rate, and Duration (if available)
+    if {'pktcount', 'bytecount', 'tot_dur'}.issubset(data.columns):
+        st.subheader("Detailed Feature Analysis")
 
-    # Identify common IPs in attack data if 'source_ip' column exists
-    if 'source_ip' in data.columns:
+        # Packet Rate Analysis
+        pkt_rate_summary = filtered_data['pktcount'].describe()
+        st.write("Packet Count Summary:")
+        st.write(pkt_rate_summary)
+
+        # Byte Rate Analysis
+        byte_rate_summary = filtered_data['bytecount'].describe()
+        st.write("Byte Count Summary:")
+        st.write(byte_rate_summary)
+
+        # Duration Analysis
+        duration_summary = filtered_data['tot_dur'].describe()
+        st.write("Total Duration Summary:")
+        st.write(duration_summary)
+
+        st.info("Recommendation: High packet or byte rates with low duration may indicate potential DDoS patterns.")
+
+    # Identify common IPs in attack data if 'src' column exists
+    if 'src' in data.columns:
         attack_ips = filtered_data[filtered_data['label'] == label_mapping.get('attack', -1)]
-        common_ips = attack_ips['source_ip'].value_counts().head(5)
+        common_ips = attack_ips['src'].value_counts().head(5)
         st.subheader("Top Suspicious IPs")
         st.write("The following IP addresses have the highest frequency in attack traffic and may need blocking:")
         st.write(common_ips)
@@ -129,30 +142,29 @@ if uploaded_file is not None:
         ip_chart.update_layout(title="Top Suspicious IPs")
         st.plotly_chart(ip_chart)
 
-        # Recommendation based on IP frequency
         if not common_ips.empty:
             st.info("Recommendation: Consider blocking or monitoring these IP addresses to prevent repeated attacks.")
 
-    # Time-Series Visualization with Altair, check if 'timestamp' column is available
-    if 'timestamp' in filtered_data.columns:
-        filtered_data['timestamp'] = pd.to_datetime(filtered_data['timestamp'], errors='coerce')
-        filtered_data = filtered_data.dropna(subset=['timestamp'])
+    # Time-Series Visualization with Altair, check if 'dt' column is available
+    if 'dt' in filtered_data.columns:
+        filtered_data['dt'] = pd.to_datetime(filtered_data['dt'], errors='coerce')
+        filtered_data = filtered_data.dropna(subset=['dt'])
         attack_data = filtered_data[filtered_data['label'] != label_mapping.get('benign', -1)]
         benign_data = filtered_data[filtered_data['label'] == label_mapping.get('benign', -1)]
 
         st.subheader("Time-Series Visualization of Attacks")
-        attack_chart = alt.Chart(attack_data).mark_point(color='red').encode(
-            x='timestamp:T', y='label:Q', tooltip=['timestamp', 'label']
+        attack_chart = alt.Chart(attack_data).mark_line(color='red').encode(
+            x='dt:T', y='bytecount:Q', tooltip=['dt', 'bytecount']
         ).properties(title='Attack Data Over Time')
         
-        benign_chart = alt.Chart(benign_data).mark_point(color='green').encode(
-            x='timestamp:T', y='label:Q', tooltip=['timestamp', 'label']
+        benign_chart = alt.Chart(benign_data).mark_line(color='green').encode(
+            x='dt:T', y='bytecount:Q', tooltip=['dt', 'bytecount']
         ).properties(title='Benign Data Over Time')
         
         st.altair_chart(attack_chart + benign_chart, use_container_width=True)
 
         # Real-Time DDoS Alert Notification
-        latest_attack_time = attack_data['timestamp'].max() if not attack_data.empty else None
+        latest_attack_time = attack_data['dt'].max() if not attack_data.empty else None
         st.subheader("Real-Time DDoS Attack Alerts")
         if latest_attack_time:
             time_since_last_attack = dt.datetime.now() - latest_attack_time
