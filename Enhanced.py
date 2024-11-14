@@ -1,7 +1,6 @@
 # Import necessary libraries
 import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
 import numpy as np
 import datetime as dt
 import plotly.express as px
@@ -13,7 +12,7 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 from sklearn.feature_selection import SelectKBest, chi2
 
 # Load the dataset (upload functionality in Streamlit)
-st.title("DDoS Detection Application")
+st.title("DDoS Detection and Analytics Application")
 uploaded_file = st.file_uploader("Upload your dataset", type=["csv", "xlsx"])
 
 # Protection mode toggle
@@ -102,11 +101,20 @@ if uploaded_file is not None:
     st.plotly_chart(cm_fig)
 
     # Additional Analysis: Count of attacks vs normal traffic
-    st.subheader("Traffic Analysis")
+    st.subheader("Traffic Analysis and Insights")
     attack_count = (y_test == label_mapping.get('attack', -1)).sum()
     normal_count = (y_test == label_mapping.get('benign', -1)).sum()
     st.write(f"Total Attack Traffic: {attack_count}")
     st.write(f"Total Normal Traffic: {normal_count}")
+    st.write(f"Attack to Normal Traffic Ratio: {attack_count / max(normal_count, 1):.2f}")
+
+    # Suggestions based on traffic ratios
+    if attack_count > normal_count:
+        st.warning("High volume of attack traffic detected. Recommend monitoring and adjusting firewall settings.")
+    elif attack_count / max(normal_count, 1) > 0.5:
+        st.info("Moderate level of attack traffic. Suggest periodic monitoring and increasing security thresholds.")
+    else:
+        st.success("Attack traffic is low compared to normal traffic.")
 
     # Identify common IPs in attack data if 'source_ip' column exists
     if 'source_ip' in data.columns:
@@ -120,6 +128,10 @@ if uploaded_file is not None:
         ip_chart = px.bar(common_ips, x=common_ips.index, y=common_ips.values, labels={'x': 'Source IP', 'y': 'Attack Count'})
         ip_chart.update_layout(title="Top Suspicious IPs")
         st.plotly_chart(ip_chart)
+
+        # Recommendation based on IP frequency
+        if not common_ips.empty:
+            st.info("Recommendation: Consider blocking or monitoring these IP addresses to prevent repeated attacks.")
 
     # Time-Series Visualization with Altair, check if 'timestamp' column is available
     if 'timestamp' in filtered_data.columns:
