@@ -2,11 +2,8 @@
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
-import seaborn as sns
-import time
 import numpy as np
 import datetime as dt
-import random
 import plotly.express as px
 import altair as alt
 from sklearn.model_selection import train_test_split
@@ -104,11 +101,25 @@ if uploaded_file is not None:
     cm_fig.update_layout(title="Confusion Matrix")
     st.plotly_chart(cm_fig)
 
-    # Interactive Label Selection for Real-Time DDoS Detection Alerts
-    st.sidebar.subheader("Manual DDoS Attack Detection")
-    manual_detection_time = st.sidebar.text_input("Enter a timestamp (YYYY-MM-DD HH:MM:SS)")
-    if manual_detection_time:
-        st.warning(f"Manual DDoS attack detection activated at {manual_detection_time}.")
+    # Additional Analysis: Count of attacks vs normal traffic
+    st.subheader("Traffic Analysis")
+    attack_count = (y_test == label_mapping.get('attack', -1)).sum()
+    normal_count = (y_test == label_mapping.get('benign', -1)).sum()
+    st.write(f"Total Attack Traffic: {attack_count}")
+    st.write(f"Total Normal Traffic: {normal_count}")
+
+    # Identify common IPs in attack data if 'source_ip' column exists
+    if 'source_ip' in data.columns:
+        attack_ips = filtered_data[filtered_data['label'] == label_mapping.get('attack', -1)]
+        common_ips = attack_ips['source_ip'].value_counts().head(5)
+        st.subheader("Top Suspicious IPs")
+        st.write("The following IP addresses have the highest frequency in attack traffic and may need blocking:")
+        st.write(common_ips)
+
+        # Plot common IPs
+        ip_chart = px.bar(common_ips, x=common_ips.index, y=common_ips.values, labels={'x': 'Source IP', 'y': 'Attack Count'})
+        ip_chart.update_layout(title="Top Suspicious IPs")
+        st.plotly_chart(ip_chart)
 
     # Time-Series Visualization with Altair, check if 'timestamp' column is available
     if 'timestamp' in filtered_data.columns:
