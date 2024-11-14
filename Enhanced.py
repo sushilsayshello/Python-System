@@ -110,7 +110,7 @@ if uploaded_file is not None:
     if manual_detection_time:
         st.warning(f"Manual DDoS attack detection activated at {manual_detection_time}.")
 
-    # Time-Series Visualization with Altair
+    # Time-Series Visualization with Altair, check if 'timestamp' column is available
     if 'timestamp' in filtered_data.columns:
         filtered_data['timestamp'] = pd.to_datetime(filtered_data['timestamp'], errors='coerce')
         filtered_data = filtered_data.dropna(subset=['timestamp'])
@@ -128,14 +128,16 @@ if uploaded_file is not None:
         
         st.altair_chart(attack_chart + benign_chart, use_container_width=True)
 
-    # Real-Time DDoS Alert Notification
-    latest_attack_time = attack_data['timestamp'].max() if not attack_data.empty else None
-    st.subheader("Real-Time DDoS Attack Alerts")
-    if latest_attack_time:
-        time_since_last_attack = dt.datetime.now() - latest_attack_time
-        if time_since_last_attack < dt.timedelta(minutes=5):
-            st.error(f"ALERT: DDoS attack detected at {latest_attack_time}! Immediate action required.")
+        # Real-Time DDoS Alert Notification
+        latest_attack_time = attack_data['timestamp'].max() if not attack_data.empty else None
+        st.subheader("Real-Time DDoS Attack Alerts")
+        if latest_attack_time:
+            time_since_last_attack = dt.datetime.now() - latest_attack_time
+            if time_since_last_attack < dt.timedelta(minutes=5):
+                st.error(f"ALERT: DDoS attack detected at {latest_attack_time}! Immediate action required.")
+            else:
+                st.success(f"No recent DDoS attacks detected. Last recorded attack was at {latest_attack_time}.")
         else:
-            st.success(f"No recent DDoS attacks detected. Last recorded attack was at {latest_attack_time}.")
+            st.success("No DDoS attacks detected in the current dataset.")
     else:
-        st.success("No DDoS attacks detected in the current dataset.")
+        st.warning("Timestamp column is missing or improperly formatted. Time-series visualization and alerts are disabled.")
