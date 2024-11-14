@@ -46,86 +46,30 @@ if uploaded_file is not None:
     label_mapping = dict(zip(label_encoder.classes_, label_encoder.transform(label_encoder.classes_)))
     st.write("Label Encoding Mapping:", label_mapping)
 
-    # Key Feature Analysis
-    st.subheader("Key Feature Analysis")
-
-    # Select 10 relevant features
-    features_to_analyze = [
+    # Filtering and Feature Selection
+    st.sidebar.subheader("Feature Selection and Filtering")
+    features_to_analyze = st.sidebar.multiselect("Select Features for Analysis", options=data.columns.tolist(), default=[
         'pktcount', 'bytecount', 'dur', 'tot_dur', 'flows', 'pktperflow', 
         'byteperflow', 'protocol', 'port_no', 'pktrate'
-    ]
+    ])
+    filtered_data = data[features_to_analyze + ['label']].copy()
 
-    # Display summary statistics for the selected features
-    st.write("Summary Statistics for Key Features:")
-    st.dataframe(data[features_to_analyze].describe())
+    # Handle non-numeric data and missing values for model training
+    X = filtered_data.drop(columns=['label']).select_dtypes(include=['number'])
+    X = X.replace([np.inf, -np.inf], np.nan)
+    X = X.fillna(X.mean())  # Fill missing values with mean of each column
+    y = filtered_data['label']
 
-    # Visualizations for Key Features
-    st.subheader("Feature Visualizations")
-
-    # 1. Packet Count Distribution
-    st.write("**Packet Count Distribution**")
-    pktcount_fig = px.histogram(data, x='pktcount', title="Packet Count Distribution")
-    st.plotly_chart(pktcount_fig)
-
-    # 2. Byte Count Distribution
-    st.write("**Byte Count Distribution**")
-    bytecount_fig = px.histogram(data, x='bytecount', title="Byte Count Distribution")
-    st.plotly_chart(bytecount_fig)
-
-    # 3. Duration Analysis
-    st.write("**Flow Duration Distribution**")
-    dur_fig = px.histogram(data, x='dur', title="Flow Duration Distribution")
-    st.plotly_chart(dur_fig)
-
-    # 4. Total Duration Analysis
-    st.write("**Total Duration Distribution**")
-    tot_dur_fig = px.histogram(data, x='tot_dur', title="Total Duration Distribution")
-    st.plotly_chart(tot_dur_fig)
-
-    # 5. Flows Count Analysis
-    st.write("**Flows Count Analysis**")
-    flows_fig = px.histogram(data, x='flows', title="Flows Count Distribution")
-    st.plotly_chart(flows_fig)
-
-    # 6. Packets Per Flow
-    st.write("**Packets Per Flow Distribution**")
-    pktperflow_fig = px.histogram(data, x='pktperflow', title="Packets Per Flow Distribution")
-    st.plotly_chart(pktperflow_fig)
-
-    # 7. Bytes Per Flow
-    st.write("**Bytes Per Flow Distribution**")
-    byteperflow_fig = px.histogram(data, x='byteperflow', title="Bytes Per Flow Distribution")
-    st.plotly_chart(byteperflow_fig)
-
-    # 8. Protocol Distribution
-    if 'protocol' in data.columns:
-        st.write("**Protocol Distribution**")
-        protocol_counts = data['protocol'].value_counts()
-        protocol_fig = px.pie(protocol_counts, values=protocol_counts.values, names=protocol_counts.index, title="Protocol Distribution")
-        st.plotly_chart(protocol_fig)
-
-    # 9. Port Number Analysis
-    if 'port_no' in data.columns:
-        st.write("**Port Number Analysis**")
-        port_counts = data['port_no'].value_counts().nlargest(10)
-        port_fig = px.bar(port_counts, x=port_counts.index, y=port_counts.values, labels={'x': 'Port Number', 'y': 'Count'}, title="Top 10 Port Numbers")
-        st.plotly_chart(port_fig)
-
-    # 10. Packet Rate Analysis
-    st.write("**Packet Rate Distribution**")
-    pktrate_fig = px.histogram(data, x='pktrate', title="Packet Rate Distribution")
-    st.plotly_chart(pktrate_fig)
-
-    # Model Training for Attack Detection
-    st.subheader("DDoS Attack Detection Model")
-
-    # Feature Selection and Model Training
-    X = data[features_to_analyze]
-    y = data['label']
+    # Split data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+    # Normalize the features
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
+
+    # Train XGBoost Classifier
+    st.subheader("Training the XGBoost Classifier")
     clf = XGBClassifier(n_estimators=100, random_state=42, use_label_encoder=False, eval_metric='logloss')
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
@@ -141,6 +85,15 @@ if uploaded_file is not None:
     cm_fig = px.imshow(cm, text_auto=True, labels={'x': "Predicted", 'y': "Actual"}, x=cm_labels, y=cm_labels)
     cm_fig.update_layout(title="Confusion Matrix")
     st.plotly_chart(cm_fig)
+
+    # Visualizations for Selected Features
+    st.subheader("Feature Visualizations")
+
+    for feature in features_to_analyze:
+        if feature in filtered_data.columns:
+            st.write(f"**{feature.capitalize()} Distribution**")
+            fig = px.histogram(filtered_data, x=feature, title=f"{feature.capitalize()} Distribution")
+            st.plotly_chart(fig)
 
     # Time-Series Analysis (if timestamp column is available)
     if 'dt' in data.columns:
